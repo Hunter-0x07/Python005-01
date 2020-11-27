@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+#学号: G20200389060133
+#姓名: 邓钦元
+#作业&总结链接: https://github.com/Hunter-0x07/Python005-01/tree/main/week01
+
 Description: Record time when call function
 Author: Hunter-0x07
 Finish_Date: 2020-11-27 20:31
