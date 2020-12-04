@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""标题: 单线程抓取知乎任意话题排名前400条的答案内容
+"""标题: 多线程抓取知乎任意话题排名前400条的答案内容
 
 #学号: G20200389060133
 #姓名: 邓钦元
@@ -9,7 +9,7 @@
 步骤: 
 (1) 构建json接口列表
 ----通过for loop构造接口链接，因为接口每次返回10条数据，
-所以400条数据只需要循环四十次，构造四十条链接即可
+所以400条数据只需要循环40次，构造40条链接即可
 
 (2) 遍历json接口获取数据
 ----构造headers头
@@ -21,9 +21,13 @@
 保存以当前脚本名称作为json文件名.
 
 作者: Hunter-0x07
-版本: 1.0
-完成时间: 2020.12.3 22:00
-运行时间: 57秒
+版本: 1.6
+完成时间: 2020.12.4 10:28
+
+改进: 在1.5的基础上由多线程改为线程池，引用模块concurrent.futures
+的线程池技术，这里起40个线程和多线程一样，方便和多线程作比较
+运行时间: 9秒!较多线程提升了8秒，较单线程提升了48秒!
+速度是相同线程数多线程的接近2倍，是单线程7倍！
 """
 
 import requests
@@ -31,6 +35,8 @@ from pathlib import Path
 import os
 import json
 import time
+import concurrent.futures
+import logging
 
 
 def build_json_url() -> list:
@@ -63,7 +69,10 @@ def get_data(url: str) -> None:
     }
 
     # 发送GET请求获取响应
-    res = requests.get(url=url, headers=headers)
+    try:
+        res = requests.get(url=url, headers=headers)
+    except Exception as e:
+        logging.error(f"请求发生错误: {e}")
 
     answers = res.json()['data']
 
@@ -71,13 +80,14 @@ def get_data(url: str) -> None:
     data_dict = {}
 
     for answer in answers:
+        # 个别json数据没有和总体结构一样，这里增加异常处理来避免掉
         try:
             question = answer["target"]["question"]["title"]
             content = answer["target"]["content"]
             data_dict[question] = content
 
         except Exception:
-            pass
+            logging.warning(f"个别json数据没有和总体结构一样")
 
     # 保存数据
     save_data(data_dict)
@@ -94,22 +104,47 @@ def save_data(data_dict: dict) -> None:
     file_suffix = '.json'
     file_path = os.path.join(p.parent, p.stem)
     file_abs = file_path + file_suffix
-    with open(file_abs, "a+") as f:
-        json.dump(data_dict, f, ensure_ascii=False)
+    try:
+        with open(file_abs, "a+") as f:
+            json.dump(data_dict, f, ensure_ascii=False)
+    except FileNotFoundError as e:
+        logging.error(f"权限不够, 无法创建文件: {e}")
+    except IOError as e:
+        logging.error(f"写入文件出错: {e}")
+    except Exception as e:
+        logging.error(f"其他错误: {e}")
 
 
 def main():
     """本程序入口函数"""
+    # 配置日志选项
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+    )
+
+    # 记录程序开始运行时间
     start_time = time.time()
+    logging.info(f"程序启动")
 
     # 构建json接口列表
     json_url_list = build_json_url()
 
     # 遍历json接口获取数据
-    for url in json_url_list:
-        get_data(url)
+    # 创建线程池并提交任务
+    with concurrent.futures.ThreadPoolExecutor(max_workers=40) as executor:
+        future_to_url = {executor.submit(
+            get_data, url): url for url in json_url_list}
+        for future in concurrent.futures.as_completed(future_to_url):
+            url = future_to_url[future]
+            try:
+                data = future.result()
+                logging.info(data)
+            except Exception as exc:
+                logging.error(f"{url} generated an exception: {exc}")
 
-    print(f"花费时间: {time.time()-start_time}")
+    logging.info(f"运行花费时间: {time.time()-start_time}")
 
 
 if __name__ == "__main__":
