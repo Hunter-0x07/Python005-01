@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Title: transfer file by socket
+
+#学号: G20200389060133
+#姓名: 邓钦元
+#作业&总结链接: https://github.com/Hunter-0x07/Python005-01/tree/main/week02
+"""
 
 import socket
 import tqdm
@@ -32,33 +38,51 @@ def echo_server():
     s.listen(5)
     logging.info(f"[*] Listenning as {SERVER_HOST} {SERVER_PORT}")
 
-    # Accept connection if there is any
-    client_socket, address = s.accept()
-    logging.info(f"[+] {address} is connected.")
-    received = client_socket.recv(BUFFER_SIZE).decode("utf-8")
-    filename, filesize = received.split(SEPARATOR)
+    while True:
+        # Accept connection if there is any
+        logging.info("[*] Waiting for connection..")
+        client_socket, address = s.accept()
+        logging.info(f"[+] {address} is connected.")
 
-    # Remove absolute path if there is
-    filename = "Accept_" + os.path.basename(filename)
+        while True:
+            # Receive file if there is
+            received = client_socket.recv(BUFFER_SIZE).decode("utf-8")
+            if received:
+                filename, filesize = received.split(SEPARATOR)
 
-    # Convert filesize to integer
-    filesize = int(filesize)
+                # Remove absolute path if there is
+                filename = "Accept_" + os.path.basename(filename)
 
-    # Start receiving the file from the socket
-    # and write it to the file stream
-    progress = tqdm.tqdm(range(filesize), f'Receiving {filename}',
-                            unit="B", unit_scale=True, unit_divisor=1024)
-    with open(filename, "wb") as f:
-        for _ in progress:
-            bytes_read = client_socket.recv(BUFFER_SIZE)
-            if not bytes_read:
-                break
+                # Convert filesize to integer
+                filesize = int(filesize)
 
-            # Update the progress bar
-            progress.update(len(bytes_read))
+                # Start receiving the file from the socket
+                # and write it to the file stream
+                progress = tqdm.tqdm(range(filesize), f'Receiving {filename}',
+                                     unit="B", unit_scale=True, unit_divisor=1024)
 
-    # Close the client socket
-    client_socket.close()
+                with open(filename, "ab+") as f:
+                    for _ in progress:
+                        bytes_read = client_socket.recv(BUFFER_SIZE)
+
+                        # Write data to file
+                        f.write(bytes_read)
+
+                        # Update the progress bar
+                        progress.update(len(bytes_read))
+                        progress.display()
+                        # try:
+                        #     progress.update(len(bytes_read))
+                        #     progress.display()
+                        # except Exception as e:
+                        #     logging.error(f"Some bad things happened, {e}")
+
+                        if not bytes_read:
+                            # Close the client socket
+                            client_socket.close()
+                            logging.info("Waiting for next connection...")
+                            break
+            break
 
     # Close the server socket
     s.close()

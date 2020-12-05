@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Title: transfer file by socket
+
+#学号: G20200389060133
+#姓名: 邓钦元
+#作业&总结链接: https://github.com/Hunter-0x07/Python005-01/tree/main/week02
+"""
 
 import socket
 import os
